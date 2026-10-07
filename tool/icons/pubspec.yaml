@@ -1,0 +1,7 @@
+name: wsguard_icons
+description: Generuje ikony aplikácie WSGuard z assets/branding/wsguard_source.webp
+publish_to: none
+environment:
+  sdk: ^3.7.0
+dependencies:
+  image: ^4.5.0

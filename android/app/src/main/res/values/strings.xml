@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_description">WSGuard only detects which app is currently open and reads the address bar of browsers (Chrome, Firefox, Samsung Internet, Edge, Brave, Opera…). If you open an app or a site from your block list, it shows a warning instead. No data is sent anywhere.</string>
+</resources>
