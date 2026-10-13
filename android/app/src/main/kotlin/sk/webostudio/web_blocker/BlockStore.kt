@@ -363,18 +363,93 @@ object BlockStore {
 
     /** Nastaví časové blokovanie. Bežiace blokovanie sa dá iba predĺžiť, nie skrátiť. */
     fun setTimer(context: Context, key: String, until: Long) {
+        val now = now(context)
         val timers = readMap(context, KEY_TIMERS)
-        val current = timers[key] ?: 0L
-        timers[key] = maxOf(current, until)
+        val current = (timers[key] ?: 0L).takeIf { it > now } ?: 0L
+        if (until <= current) return
+        val wasDisabled = isDisabled(context, key)
+
+        // Záznam pre zrušenie do 10 minút. Ak predlžujeme počas bežiacej lehoty, ostáva
+        // pôvodná lehota aj pôvodný stav – opakovaným predlžovaním sa lehota nedá natiahnuť.
+        val meta = readMeta(context)
+        val old = meta.optJSONObject(key)
+        if (old == null || old.getLong("start") + CANCEL_WINDOW <= now) {
+            meta.put(
+                key,
+                JSONObject().put("start", now).put("prevUntil", current).put("prevDisabled", wasDisabled),
+            )
+            prefs(context).edit().putString(KEY_TIMER_META, meta.toString()).apply()
+        }
+
+        timers[key] = until
         writeMap(context, KEY_TIMERS, timers)
         // Počas časového blokovania sa trvalý vypínač ignoruje – po skončení ho nastaví housekeeping.
-        val type = key.substringBefore(':')
+        setDisabled(context, key, false)
+    }
+
+    // ---------------- zrušenie do 10 minút ----------------
+
+    /** Do koľkých minút od spustenia sa dá časové blokovanie ešte zrušiť (omyl, rozmyslenie si). */
+    const val CANCEL_WINDOW = 10 * 60_000L
+    private const val KEY_TIMER_META = "timer_meta"
+
+    private fun readMeta(context: Context): JSONObject = try {
+        JSONObject(prefs(context).getString(KEY_TIMER_META, "{}")!!)
+    } catch (_: Exception) {
+        JSONObject()
+    }
+
+    private fun isDisabled(context: Context, key: String): Boolean {
         val id = key.substringAfter(':')
-        when (type) {
-            "site" -> setDisabledEntries(context, disabledEntries(context) - id)
-            "app" -> setDisabledApps(context, disabledApps(context) - id)
-            "list" -> setDisabledLists(context, disabledLists(context) - id)
+        return when (key.substringBefore(':')) {
+            "site" -> id in disabledEntries(context)
+            "app" -> id in disabledApps(context)
+            "list" -> id in disabledLists(context)
+            else -> false
         }
+    }
+
+    private fun setDisabled(context: Context, key: String, disabled: Boolean) {
+        val id = key.substringAfter(':')
+        fun Set<String>.with() = if (disabled) this + id else this - id
+        when (key.substringBefore(':')) {
+            "site" -> setDisabledEntries(context, disabledEntries(context).with())
+            "app" -> setDisabledApps(context, disabledApps(context).with())
+            "list" -> setDisabledLists(context, disabledLists(context).with())
+        }
+    }
+
+    /** Do kedy (dôveryhodný čas) sa dá časové blokovanie zrušiť – iba pre bežiace lehoty. */
+    fun cancelDeadlines(context: Context): Map<String, Long> {
+        val now = now(context)
+        val timers = timers(context)
+        val meta = readMeta(context)
+        return meta.keys().asSequence()
+            .filter { (timers[it] ?: 0L) > now }
+            .associateWith { meta.getJSONObject(it).getLong("start") + CANCEL_WINDOW }
+            .filterValues { it > now }
+    }
+
+    /**
+     * Zruší časové blokovanie spustené pred menej ako 10 minútami – položka sa vráti do stavu
+     * pred spustením (pri predĺžení na pôvodný koniec). Vráti false, ak je už neskoro.
+     */
+    fun cancelTimer(context: Context, key: String): Boolean {
+        val now = now(context)
+        val meta = readMeta(context)
+        val m = meta.optJSONObject(key) ?: return false
+        if (m.getLong("start") + CANCEL_WINDOW <= now || !isTimed(context, key)) return false
+
+        val prevUntil = m.optLong("prevUntil", 0L)
+        val timers = readMap(context, KEY_TIMERS)
+        if (prevUntil > now) timers[key] = prevUntil else timers.remove(key)
+        writeMap(context, KEY_TIMERS, timers)
+        writeMap(context, KEY_PAUSES, readMap(context, KEY_PAUSES).filterKeys { it != key || prevUntil > now })
+        if (prevUntil <= now) setDisabled(context, key, m.optBoolean("prevDisabled", false))
+
+        meta.remove(key)
+        prefs(context).edit().putString(KEY_TIMER_META, meta.toString()).apply()
+        return true
     }
 
     class PauseResult(val ok: Boolean, val reason: String? = null)
@@ -436,6 +511,9 @@ object BlockStore {
         }
         expired.forEach { timers.remove(it) }
         writeMap(context, KEY_TIMERS, timers)
+        val meta = readMeta(context)
+        expired.forEach { meta.remove(it) }
+        prefs(context).edit().putString(KEY_TIMER_META, meta.toString()).apply()
         writeMap(context, KEY_PAUSES, readMap(context, KEY_PAUSES).filterKeys { it !in expired }.filterValues { it > now })
         for (key in expired) {
             val id = key.substringAfter(':')

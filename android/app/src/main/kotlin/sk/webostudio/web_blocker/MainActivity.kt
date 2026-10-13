@@ -78,6 +78,11 @@ class MainActivity : FlutterActivity() {
                     TimerReceiver.scheduleNext(this)
                     result.success(state())
                 }
+                "cancelTimer" -> {
+                    val ok = BlockStore.cancelTimer(this, call.argument<String>("key")!!)
+                    TimerReceiver.scheduleNext(this)
+                    result.success(mapOf("ok" to ok, "state" to state()))
+                }
                 "pause" -> {
                     val r = BlockStore.pause(this, call.argument<String>("key")!!)
                     result.success(mapOf("ok" to r.ok, "reason" to r.reason, "state" to state()))
@@ -139,6 +144,7 @@ class MainActivity : FlutterActivity() {
             "lists" to BlockStore.lists(this).map { it.toMap() },
             "timers" to timers.mapValues { it.value + skew },
             "pauses" to BlockStore.pauses(this).mapValues { it.value + skew },
+            "cancelUntil" to BlockStore.cancelDeadlines(this).mapValues { it.value + skew },
             "pauseUsed" to timers.keys.associateWith { BlockStore.pauseUsedToday(this, it) },
             "unblockMinutes" to BlockStore.unblockMinutes(this),
             "unblockPerDay" to BlockStore.unblockPerDay(this),

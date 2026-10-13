@@ -15,6 +15,7 @@ class ListsSection extends StatelessWidget {
     required this.onRemove,
     required this.onTimer,
     required this.onUnblock,
+    required this.onCancelTimer,
   });
 
   final BlockerState state;
@@ -24,6 +25,9 @@ class ListsSection extends StatelessWidget {
   final ValueChanged<BlockList> onRemove;
   final void Function(String key, String name) onTimer;
   final void Function(String key, String name) onUnblock;
+
+  /// Zrušiť časové blokovanie do 10 min od spustenia: (kľúč, názov).
+  final void Function(String key, String name) onCancelTimer;
 
   /// Beží všetko, čo zoznam potrebuje? (aplikácie -> prístupnosť, stránky -> VPN alebo prístupnosť)
   bool _methodActive(BlockList l) =>
@@ -110,6 +114,8 @@ class ListsSection extends StatelessWidget {
               methodActive: _methodActive(l),
               timerEnd: state.timerEnd(listKey(l.id)),
               pauseEnd: state.pauseEnd(listKey(l.id)),
+              cancelEnd: state.cancelEnd(listKey(l.id)),
+              onCancelTimer: () => onCancelTimer(listKey(l.id), l.name),
               unblocksLeft: state.unblockAllowed ? state.unblocksLeft(listKey(l.id)) : null,
               unblockMinutes: state.unblockMinutes,
               onTap: () => onEdit(l),

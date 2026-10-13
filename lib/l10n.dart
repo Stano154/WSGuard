@@ -232,10 +232,26 @@ class S {
             : 'Dočasne odblokovať sa dá na $minutes min, najviac $perDay× za deň.');
     return en
         ? 'Until ${dateTime(end)} this block can\'t be turned off, shortened or removed, and WSGuard '
-            'protection can\'t be turned off either.\n\n$unblock'
+            'protection can\'t be turned off either.\n\n$unblock\n\n'
+            'Changed your mind? You can cancel it within 10 minutes.'
         : 'Do ${dateTime(end)} sa toto blokovanie nedá vypnúť, skrátiť ani odstrániť a nedá sa vypnúť '
-            'ani ochrana WSGuard.\n\n$unblock';
+            'ani ochrana WSGuard.\n\n$unblock\n\n'
+            'Ak si to rozmyslíš, do 10 minút ho ešte môžeš zrušiť.';
   }
+
+  String cancelTimerButton(Duration left) =>
+      en ? 'Cancel block · ${duration(left)} left' : 'Zrušiť blokovanie · ešte ${duration(left)}';
+  String get cancelTimerTitle => en ? 'Cancel timed blocking?' : 'Zrušiť časové blokovanie?';
+  String cancelTimerBody(String name) => en
+      ? '$name goes back to how it was before you started the timed blocking.'
+      : '$name sa vráti do stavu pred spustením časového blokovania.';
+  String get cancelTimerConfirm => en ? 'Cancel blocking' : 'Zrušiť blokovanie';
+  String get keepBlocking => en ? 'Keep' : 'Ponechať';
+  String timerCancelled(String name) =>
+      en ? 'Timed blocking of $name was cancelled' : 'Časové blokovanie – $name – bolo zrušené';
+  String get cancelTooLate => en
+      ? 'Too late – more than 10 minutes have passed'
+      : 'Už je neskoro – od spustenia uplynulo viac ako 10 minút';
 
   String get start => en ? 'Start' : 'Spustiť';
   String statusTimed(Duration left) => en ? 'Blocked · ${duration(left)} left' : 'Blokované ešte ${duration(left)}';

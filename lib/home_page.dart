@@ -243,6 +243,26 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         : '${s.timedStarted(name, until)}. ${s.remindTurnOn}');
   }
 
+  /// Zrušenie časového blokovania do 10 minút od spustenia (omyl alebo rozmyslenie si).
+  Future<void> _cancelTimer(String key, String name) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: const Icon(Icons.undo_rounded),
+        title: Text(s.cancelTimerTitle),
+        content: Text(s.cancelTimerBody(name)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(s.keepBlocking)),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(s.cancelTimerConfirm)),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final r = await BlockerApi.cancelTimer(key);
+    if (mounted) setState(() => _state = r.state);
+    _toast(r.ok ? s.timerCancelled(name) : s.cancelTooLate);
+  }
+
   /// "Odblokovať na N min" pri časovom blokovaní.
   Future<void> _unblock(String key, String name) async {
     final r = await BlockerApi.pause(key);
@@ -413,6 +433,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                         onRemove: _removeList,
                         onTimer: _timer,
                         onUnblock: _unblock,
+                        onCancelTimer: _cancelTimer,
                       ),
                       const SizedBox(height: 28),
                       BlockedList(
@@ -425,6 +446,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                         onToggleApp: _toggleApp,
                         onTimer: _timer,
                         onUnblock: _unblock,
+                        onCancelTimer: _cancelTimer,
                         onEnableBrowsers: () => _setAccessibility(true),
                         onEnableProtection: _toggleProtection,
                       ),

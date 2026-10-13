@@ -58,7 +58,11 @@ Výsledok: `WSGuard\build\app\outputs\flutter-apk\app-release.apk`
 ## Časové blokovanie
 
 - Pri položke alebo zozname: **⋮ → Zablokovať na čas** → 1 hodina, 1 deň, 1 týždeň alebo vlastný čas.
-- Kým časové blokovanie beží, **nedá sa vypnúť, skrátiť ani odstrániť** a nedá sa vypnúť ani celá
+- **Do 10 minút od spustenia** ho ešte môžeš **zrušiť** (tlačidlo *Zrušiť blokovanie* pri položke) –
+  ak si ho zapol omylom alebo si to rozmyslel. Položka sa vráti do stavu pred spustením.
+  Predĺžením sa táto lehota nepredlžuje.
+- Spustenie časového blokovania nemení spôsob blokovania – zapnuté ostane len to, čo si zapol sám.
+- Po uplynutí 10 minút sa časové blokovanie **nedá vypnúť, skrátiť ani odstrániť** a nedá sa vypnúť ani celá
   ochrana WSGuard (VPN, režim Aplikácie a prehliadače). Dá sa iba **predĺžiť** – kratšie možnosti
   sú sivé.
 - Jediná výnimka: **Odblokovať na 15 min** – predvolene najviac 3× za deň pre každú položku.

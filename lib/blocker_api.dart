@@ -77,6 +77,7 @@ class BlockerState {
     this.timers = const {},
     this.pauses = const {},
     this.pauseUsed = const {},
+    this.cancelUntil = const {},
     this.unblockMinutes = 15,
     this.unblockPerDay = 3,
     this.uninstallProtection = false,
@@ -101,6 +102,9 @@ class BlockerState {
   /// Konce časových blokovaní a dočasných odblokovaní (kľúč -> ms od epochy).
   final Map<String, int> timers;
   final Map<String, int> pauses;
+
+  /// Do kedy sa dá práve spustené časové blokovanie ešte zrušiť (10 min od spustenia).
+  final Map<String, int> cancelUntil;
 
   /// Koľkokrát sa dnes pravidlo dočasne odblokovalo.
   final Map<String, int> pauseUsed;
@@ -140,6 +144,11 @@ class BlockerState {
 
   DateTime? timerEnd(String key) {
     final t = timers[key];
+    return t == null || t <= _now ? null : DateTime.fromMillisecondsSinceEpoch(t);
+  }
+
+  DateTime? cancelEnd(String key) {
+    final t = cancelUntil[key];
     return t == null || t <= _now ? null : DateTime.fromMillisecondsSinceEpoch(t);
   }
 
@@ -194,6 +203,7 @@ class BlockerState {
         disabledLists: Set<String>.from(map['disabledLists'] as List? ?? const []),
         timers: _intMap(map['timers']),
         pauses: _intMap(map['pauses']),
+        cancelUntil: _intMap(map['cancelUntil']),
         pauseUsed: _intMap(map['pauseUsed']),
         unblockMinutes: (map['unblockMinutes'] as int?) ?? 15,
         unblockPerDay: (map['unblockPerDay'] as int?) ?? 3,
@@ -222,6 +232,7 @@ class BlockerState {
         disabledLists: disabledLists ?? this.disabledLists,
         timers: timers ?? this.timers,
         pauses: pauses,
+        cancelUntil: cancelUntil,
         pauseUsed: pauseUsed,
         unblockMinutes: unblockMinutes,
         unblockPerDay: unblockPerDay,
@@ -313,6 +324,15 @@ class BlockerApi {
   }
 
   /// Dočasné odblokovanie časového pravidla (dĺžka a limit podľa nastavení).
+  /// Zruší časové blokovanie do 10 minút od spustenia. ok=false, ak je už neskoro.
+  static Future<PauseResult> cancelTimer(String key) async {
+    if (!isSupported) return PauseResult(false, 'unsupported', _fallback);
+    final m =
+        await _channel.invokeMethod<Map<dynamic, dynamic>>('cancelTimer', {'key': key}) ?? const {};
+    return PauseResult(m['ok'] == true, m['ok'] == true ? null : 'tooLate',
+        BlockerState.fromMap(m['state'] as Map? ?? const {}));
+  }
+
   static Future<PauseResult> pause(String key) async {
     if (!isSupported) return PauseResult(false, 'unsupported', _fallback);
     final m = await _channel.invokeMethod<Map<dynamic, dynamic>>('pause', {'key': key}) ?? const {};

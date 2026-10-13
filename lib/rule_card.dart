@@ -22,6 +22,8 @@ class RuleCard extends StatelessWidget {
     required this.onUnblock,
     this.timerEnd,
     this.pauseEnd,
+    this.cancelEnd,
+    this.onCancelTimer,
     this.unblocksLeft,
     this.onTap,
     this.extraMenu = const [],
@@ -36,6 +38,10 @@ class RuleCard extends StatelessWidget {
   final bool methodActive;
   final DateTime? timerEnd;
   final DateTime? pauseEnd;
+
+  /// Do kedy sa dá práve spustené časové blokovanie zrušiť (null = už nie).
+  final DateTime? cancelEnd;
+  final VoidCallback? onCancelTimer;
 
   /// Zostávajúce dočasné odblokovania dnes (null = odblokovanie je vypnuté – "Nikdy").
   final int? unblocksLeft;
@@ -101,6 +107,23 @@ class RuleCard extends StatelessWidget {
                   timerEnd: timerEnd,
                   pauseEnd: pauseEnd,
                 ),
+                if (locked && cancelEnd != null && onCancelTimer != null) ...[
+                  const SizedBox(height: 6),
+                  TextButton.icon(
+                    onPressed: onCancelTimer,
+                    style: TextButton.styleFrom(
+                      foregroundColor: scheme.error,
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    icon: const Icon(Icons.undo_rounded, size: 18),
+                    label: Text(
+                      s.cancelTimerButton(cancelEnd!.difference(DateTime.now())),
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
                 if (status == RuleStatus.timed && unblocksLeft != null) ...[
                   const SizedBox(height: 6),
                   _UnblockButton(

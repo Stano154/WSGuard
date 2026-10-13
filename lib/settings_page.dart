@@ -10,7 +10,7 @@ import 'lock_screen.dart';
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
-  static const appVersion = '1.1.1';
+  static const appVersion = '1.1.0';
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();

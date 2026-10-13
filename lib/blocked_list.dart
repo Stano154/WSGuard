@@ -21,6 +21,7 @@ class BlockedList extends StatefulWidget {
     required this.onToggleApp,
     required this.onTimer,
     required this.onUnblock,
+    required this.onCancelTimer,
     required this.onEnableBrowsers,
     required this.onEnableProtection,
   });
@@ -38,6 +39,9 @@ class BlockedList extends StatefulWidget {
 
   /// Dočasne odblokovať: (kľúč pravidla, zobrazovaný názov).
   final void Function(String key, String name) onUnblock;
+
+  /// Zrušiť časové blokovanie do 10 min od spustenia: (kľúč, názov).
+  final void Function(String key, String name) onCancelTimer;
   final VoidCallback onEnableBrowsers;
   final VoidCallback onEnableProtection;
 
@@ -118,6 +122,8 @@ class _BlockedListState extends State<BlockedList> {
       methodActive: st.accessibilityActive,
       timerEnd: st.timerEnd(key),
       pauseEnd: st.pauseEnd(key),
+      cancelEnd: st.cancelEnd(key),
+      onCancelTimer: () => widget.onCancelTimer(key, name),
       unblocksLeft: st.unblockAllowed ? st.unblocksLeft(key) : null,
       unblockMinutes: st.unblockMinutes,
       onToggle: (v) => widget.onToggleApp(pkg, v),
@@ -144,6 +150,8 @@ class _BlockedListState extends State<BlockedList> {
       methodActive: _siteMethod(entry),
       timerEnd: st.timerEnd(key),
       pauseEnd: st.pauseEnd(key),
+      cancelEnd: st.cancelEnd(key),
+      onCancelTimer: () => widget.onCancelTimer(key, name),
       unblocksLeft: st.unblockAllowed ? st.unblocksLeft(key) : null,
       unblockMinutes: st.unblockMinutes,
       onToggle: (v) => widget.onToggleSite(entry, v),
