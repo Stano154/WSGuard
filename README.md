@@ -28,6 +28,10 @@ lib/
   main.dart            – téma, jazyk, zámok heslom
   home_page.dart       – hlavná obrazovka
   blocked_list.dart    – zoznam „Čo blokujem“ (filtre, vypínače, stav)
+  lists_section.dart   – sekcia „Zoznamy“ (skupiny stránok a aplikácií)
+  list_edit_page.dart  – vytvorenie/úprava zoznamu, šablóny
+  rule_card.dart       – karta položky (vypínač, časové blokovanie, odblokovanie na N min)
+  timer_picker.dart    – výber dĺžky časového blokovania (dá sa iba predĺžiť)
   add_site_sheet.dart  – pridanie stránky/aplikácie + obľúbené
   settings_page.dart   – nastavenia (téma, jazyk, heslo)
   lock_screen.dart     – zamykacia obrazovka a dialógy hesla
@@ -41,7 +45,10 @@ android/app/src/main/kotlin/sk/webostudio/web_blocker/
   BlockerVpnService.kt            – DNS filter cez VpnService
   BlockerAccessibilityService.kt  – sledovanie adresného riadku
   BlockedActivity.kt              – obrazovka „Stránka je zablokovaná“
-  BootReceiver.kt                 – obnovenie VPN po reštarte
+  BootReceiver.kt                 – obnovenie VPN a budíkov po reštarte
+  TimerReceiver.kt                – koniec časového blokovania + upozornenie
+  ClockReceiver.kt                – zachytenie posunu hodín (dôveryhodný čas v BlockStore)
+  GuardAdminReceiver.kt           – správca zariadenia (ochrana proti odinštalovaniu)
 ```
 
 ## Spustenie

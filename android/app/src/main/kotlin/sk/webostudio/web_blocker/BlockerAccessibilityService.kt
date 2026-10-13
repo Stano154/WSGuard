@@ -37,6 +37,33 @@ class BlockerAccessibilityService : AccessibilityService() {
             "com.mi.globalbrowser" to listOf("url"),
         )
 
+        /** Systémové nastavenia a inštalátory, v ktorých sa dá WSGuard odinštalovať alebo vypnúť. */
+        private val SETTINGS_PACKAGES = setOf(
+            "com.android.settings",
+            "com.google.android.packageinstaller",
+            "com.android.packageinstaller",
+            "com.samsung.android.packageinstaller",
+            "com.samsung.accessibility",
+            "com.android.vpndialogs",
+            "com.miui.securitycenter",
+            "com.coloros.safecenter",
+            "com.oplus.safecenter",
+            "com.huawei.systemmanager",
+        )
+
+        /** Akcie, ktoré by ochranu vyplí (SK, CZ, EN). */
+        private val GUARD_KEYWORDS = listOf(
+            "odinštal", "odinstal", "uninstall",
+            "vynútiť", "vynutit", "force stop",
+            "deaktiv", "deactivate",
+            "správc", "spravce", "admin",
+            "vypnúť", "vypnout", "turn off",
+            "odpojiť", "odpojit", "disconnect",
+            "zabudnúť", "forget",
+            "vymazať", "clear storage", "clear data",
+            "použiť wsguard", "použít wsguard", "use wsguard",
+        )
+
         fun isEnabledInSettings(context: Context): Boolean {
             val expected = ComponentName(context, BlockerAccessibilityService::class.java).flattenToString()
             val enabled = Settings.Secure.getString(
@@ -54,11 +81,19 @@ class BlockerAccessibilityService : AccessibilityService() {
     private var pausedUntil = 0L
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event == null || !BlockStore.isAccessibilityEnabled(this)) return
+        if (event == null) return
         val pkg = event.packageName?.toString() ?: return
         if (pkg == packageName) return
         val now = System.currentTimeMillis()
         if (now < pausedUntil) return
+
+        // 0) Strážca: nepustí na obrazovky, kde sa dá WSGuard odinštalovať alebo vypnúť.
+        if (pkg in SETTINGS_PACKAGES) {
+            if (BlockStore.guardSettings(this)) guardSettings(now)
+            return
+        }
+
+        if (!BlockStore.isAccessibilityEnabled(this)) return
 
         // 1) Zablokovaná aplikácia – stačí, že je v popredí.
         if (BlockStore.isAppBlocked(this, pkg)) {
@@ -83,6 +118,34 @@ class BlockerAccessibilityService : AccessibilityService() {
         // inak by systémové "Späť" zavrelo hneď aj obrazovku s upozornením.
         performGlobalAction(GLOBAL_ACTION_BACK)
         showBlocked(BlockedActivity.KIND_SITE, BlockStore.normalize(url) ?: url)
+    }
+
+    /**
+     * Obrazovka nastavení je "o nás", ak obsahuje názov WSGuard a niektorú z akcií,
+     * ktorými by sa ochrana dala obísť (odinštalovať, vynútiť zastavenie, deaktivovať…).
+     * Bežný zoznam aplikácií alebo služieb tak zostáva prístupný.
+     */
+    private fun guardSettings(now: Long) {
+        val root = rootInActiveWindow ?: return
+        val texts = StringBuilder()
+        collectText(root, texts, intArrayOf(400))
+        val screen = texts.toString().lowercase()
+        if (!screen.contains("wsguard")) return
+        if (GUARD_KEYWORDS.none { screen.contains(it) }) return
+
+        pausedUntil = now + 1500
+        performGlobalAction(GLOBAL_ACTION_HOME)
+        showBlocked(BlockedActivity.KIND_PROTECTED, "WSGuard")
+    }
+
+    private fun collectText(node: AccessibilityNodeInfo, out: StringBuilder, budget: IntArray) {
+        if (budget[0]-- <= 0) return
+        node.text?.let { out.append(it).append(' ') }
+        node.contentDescription?.let { out.append(it).append(' ') }
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i) ?: continue
+            collectText(child, out, budget)
+        }
     }
 
     private fun blockApp(pkg: String, now: Long) {

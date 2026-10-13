@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="accessibility_description">WSGuard zisťuje iba to, ktorá aplikácia je práve otvorená, a číta adresný riadok prehliadačov (Chrome, Firefox, Samsung Internet, Edge, Brave, Opera…). Ak otvoríš aplikáciu alebo stránku zo svojho zoznamu blokovaných, zobrazí namiesto nej upozornenie. Žiadne údaje sa nikam neodosielajú.</string>
+    <string name="admin_description">Zabraňuje odinštalovaniu WSGuard. WSGuard nepoužíva žiadne iné právomoci správcu zariadenia.</string>
 </resources>

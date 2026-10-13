@@ -9,6 +9,9 @@ import android.net.VpnService
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
+        // Po reštarte sa budíky zmažú – naplánujeme koniec časových blokovaní znova.
+        BlockStore.housekeeping(context)
+        TimerReceiver.scheduleNext(context)
         if (BlockStore.isVpnEnabled(context) && VpnService.prepare(context) == null) {
             BlockerVpnService.start(context)
         }

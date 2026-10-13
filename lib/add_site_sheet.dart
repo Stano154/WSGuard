@@ -24,12 +24,14 @@ class AddSheet extends StatefulWidget {
     required this.existingApps,
     required this.installedApps,
     this.initialKind = AddKind.site,
+    this.title,
   });
 
   final List<String> existingSites;
   final List<String> existingApps;
   final Future<List<InstalledApp>> installedApps;
   final AddKind initialKind;
+  final String? title;
 
   @override
   State<AddSheet> createState() => _AddSheetState();
@@ -127,7 +129,7 @@ class _AddSheetState extends State<AddSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(s.addTitle,
+                  Text(widget.title ?? s.addTitle,
                       style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 16),
                   SizedBox(

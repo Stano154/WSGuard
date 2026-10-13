@@ -180,6 +180,171 @@ class S {
   String get lockedHint => en ? 'Enter the password to continue' : 'Zadaj heslo na pokračovanie';
   String get password => en ? 'Password' : 'Heslo';
   String get unlock => en ? 'Unlock' : 'Odomknúť';
+
+  // ---- čas ----
+  /// "2 h 15 min", "3 d 4 h", "45 min", "< 1 min"
+  String duration(Duration d) {
+    if (d.inMinutes < 1) return '< 1 min';
+    final days = d.inDays, hours = d.inHours % 24, mins = d.inMinutes % 60;
+    if (days > 0) return hours > 0 ? '$days d $hours h' : '$days d';
+    if (d.inHours > 0) return mins > 0 ? '${d.inHours} h $mins min' : '${d.inHours} h';
+    return '${d.inMinutes} min';
+  }
+
+  /// "dnes 18:30", "zajtra 9:05", "14. 10. 18:30" / "today 18:30", "Oct 14, 18:30"
+  String dateTime(DateTime t) {
+    final now = DateTime.now();
+    final time = '${t.hour}:${t.minute.toString().padLeft(2, '0')}';
+    final day = DateTime(t.year, t.month, t.day);
+    final today = DateTime(now.year, now.month, now.day);
+    final diff = day.difference(today).inDays;
+    if (diff == 0) return en ? 'today $time' : 'dnes $time';
+    if (diff == 1) return en ? 'tomorrow $time' : 'zajtra $time';
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return en ? '${months[t.month - 1]} ${t.day}, $time' : '${t.day}. ${t.month}. $time';
+  }
+
+  // ---- časové blokovanie ----
+  String get hour1 => en ? '1 hour' : '1 hodina';
+  String get day1 => en ? '1 day' : '1 deň';
+  String get week1 => en ? '1 week' : '1 týždeň';
+  String get customTime => en ? 'Custom…' : 'Vlastný čas…';
+  String until(DateTime t) => en ? 'until ${dateTime(t)}' : 'do ${dateTime(t)}';
+  String get blockForTime => en ? 'Block for a time' : 'Zablokovať na čas';
+  String get extendBlock => en ? 'Extend blocking' : 'Predĺžiť blokovanie';
+  String onlyLonger(DateTime end) => en
+      ? 'blocked until ${dateTime(end)}, can only be extended'
+      : 'blokované do ${dateTime(end)}, dá sa iba predĺžiť';
+  String get shorterThanCurrent =>
+      en ? 'Shorter than the current block' : 'Kratšie ako bežiace blokovanie';
+  String mustBeLonger(DateTime end) => en
+      ? 'Pick a time after ${dateTime(end)} – blocking can only be extended'
+      : 'Zvoľ čas po ${dateTime(end)} – blokovanie sa dá iba predĺžiť';
+  String get pickFuture => en ? 'Pick a time in the future' : 'Zvoľ čas v budúcnosti';
+  String get timedConfirmTitle => en ? 'Start timed blocking?' : 'Spustiť časové blokovanie?';
+  String timedConfirmBody(DateTime end, int minutes, int perDay) {
+    final unblock = perDay <= 0
+        ? (en
+            ? 'Temporary unblocking is off (set to “Never” in settings).'
+            : 'Dočasne odblokovať sa nedá (v nastaveniach je „Nikdy“).')
+        : (en
+            ? 'You can unblock it for $minutes min, at most $perDay× a day.'
+            : 'Dočasne odblokovať sa dá na $minutes min, najviac $perDay× za deň.');
+    return en
+        ? 'Until ${dateTime(end)} this block can\'t be turned off, shortened or removed, and WSGuard '
+            'protection can\'t be turned off either.\n\n$unblock'
+        : 'Do ${dateTime(end)} sa toto blokovanie nedá vypnúť, skrátiť ani odstrániť a nedá sa vypnúť '
+            'ani ochrana WSGuard.\n\n$unblock';
+  }
+
+  String get start => en ? 'Start' : 'Spustiť';
+  String statusTimed(Duration left) => en ? 'Blocked · ${duration(left)} left' : 'Blokované ešte ${duration(left)}';
+  String statusPaused(Duration left) =>
+      en ? 'Unblocked · ${duration(left)} left' : 'Odblokované ešte ${duration(left)}';
+  String unblockFor(int minutes) => en ? 'Unblock for $minutes min' : 'Odblokovať na $minutes min';
+  String unblocksLeft(int n) => en ? '$n× left' : 'ešte $n×';
+  String get unblockLimit =>
+      en ? 'Today\'s unblock limit is used up' : 'Dnešný limit odblokovaní je vyčerpaný';
+  String unblocked(String name, int minutes) =>
+      en ? '$name is unblocked for $minutes min' : '$name je odblokované na $minutes min';
+  String timedStarted(String name, DateTime end) =>
+      en ? '$name is blocked until ${dateTime(end)}' : '$name je zablokované do ${dateTime(end)}';
+  String lockedBanner(DateTime end) => en
+      ? 'Timed blocking runs until ${dateTime(end)} – protection can\'t be turned off until then.'
+      : 'Časové blokovanie beží do ${dateTime(end)} – ochrana sa dovtedy nedá vypnúť.';
+  String lockedShort(DateTime end) => en ? 'Locked until ${dateTime(end)}' : 'Zamknuté do ${dateTime(end)}';
+  String get lockedToast =>
+      en ? 'This can\'t be changed during timed blocking' : 'Počas časového blokovania sa to nedá zmeniť';
+  String get moreOptions => en ? 'More options' : 'Ďalšie možnosti';
+
+  // ---- zoznamy ----
+  String get lists => en ? 'Lists' : 'Zoznamy';
+  String get listsHint =>
+      en ? 'Group apps and sites and block them at once.' : 'Zoskup aplikácie a stránky a blokuj ich naraz.';
+  String get newList => en ? 'New list' : 'Nový zoznam';
+  String get editList => en ? 'Edit list' : 'Upraviť zoznam';
+  String get listName => en ? 'List name' : 'Názov zoznamu';
+  String get listNameHint => en ? 'e.g. Social media' : 'napr. Sociálne siete';
+  String get nameRequired => en ? 'Enter a list name' : 'Zadaj názov zoznamu';
+  String get listIcon => en ? 'Icon' : 'Ikona';
+  String get listItemsTitle => en ? 'Items' : 'Položky';
+  String get addItems => en ? 'Add items' : 'Pridať položky';
+  String get listEmptyItems =>
+      en ? 'The list is empty – add apps or sites.' : 'Zoznam je prázdny – pridaj aplikácie alebo stránky.';
+  String listSummary(int apps, int sites) {
+    if (apps + sites == 0) return en ? 'Empty' : 'Prázdny';
+    return and([if (apps > 0) this.apps(apps), if (sites > 0) this.sites(sites)]);
+  }
+
+  String get templates => en ? 'Start from a template' : 'Začni zo šablóny';
+  String get tplSocial => en ? 'Social media' : 'Sociálne siete';
+  String get tplVideo => en ? 'Video & streaming' : 'Videá a streamovanie';
+  String get tplEmpty => en ? 'Empty' : 'Prázdny';
+  String get edit => en ? 'Edit' : 'Upraviť';
+  String get deleteList => en ? 'Delete list' : 'Odstrániť zoznam';
+  String listDeleted(String name) => en ? 'List “$name” deleted' : 'Zoznam „$name“ bol odstránený';
+  String get listLockedEdit => en
+      ? 'Timed blocking is running – items can only be added.'
+      : 'Beží časové blokovanie – položky sa dajú iba pridávať.';
+  String get noLists => en ? 'No lists yet' : 'Zatiaľ nemáš žiadny zoznam';
+
+  // ---- nastavenia: dočasné odblokovanie ----
+  String get tempUnblock => en ? 'Temporary unblock' : 'Dočasné odblokovanie';
+  String get tempUnblockHint => en
+      ? 'Applies to timed blocking. These settings can\'t be changed while timed blocking runs.'
+      : 'Platí pre časové blokovanie. Kým časové blokovanie beží, tieto nastavenia sa meniť nedajú.';
+  String get unblockLength => en ? 'Length' : 'Dĺžka';
+  String get unblockPerDayLabel => en ? 'Times per day (per item)' : 'Koľkokrát za deň (pre položku)';
+  String get never => en ? 'Never' : 'Nikdy';
+
+  // ---- nastavenia: ochrana proti odinštalovaniu ----
+  String get uninstallProtection => en ? 'Uninstall protection' : 'Ochrana proti odinštalovaniu';
+  String get uninstallProtectionHint => en
+      ? 'WSGuard can\'t be uninstalled or turned off in phone settings until you turn this off here with your password.'
+      : 'WSGuard sa nedá odinštalovať ani vypnúť v nastaveniach telefónu, kým túto ochranu nevypneš tu heslom.';
+  String get needsPassword => en ? 'Set a password first' : 'Najprv si nastav heslo';
+  String get needsA11y => en
+      ? 'For full protection also turn on “Apps and browsers” – it guards the phone settings.'
+      : 'Pre úplnú ochranu zapni aj režim „Aplikácie a prehliadače“ – stráži nastavenia telefónu.';
+  String get protectionOnToast =>
+      en ? 'Uninstall protection is on' : 'Ochrana proti odinštalovaniu je zapnutá';
+  String get protectionOffToast =>
+      en ? 'Uninstall protection is off – WSGuard can be uninstalled' : 'Ochrana je vypnutá – WSGuard sa dá odinštalovať';
+  String get protectionNotActivated =>
+      en ? 'Protection was not activated' : 'Ochrana nebola aktivovaná';
+  String get turnOffProtectionFirst =>
+      en ? 'Turn off uninstall protection first' : 'Najprv vypni ochranu proti odinštalovaniu';
+  String get uninstallGuideTitle => en ? 'How to uninstall WSGuard' : 'Ako odinštalovať WSGuard';
+  String get uninstallGuideNormalTitle => en ? 'Normal way' : 'Bežný postup';
+  String get uninstallGuideNormal => en
+      ? '1. Wait until no timed blocking is running.\n'
+          '2. In WSGuard settings turn off “Uninstall protection” and enter your password.\n'
+          '3. Uninstall WSGuard as any other app (long-press the icon → Uninstall).'
+      : '1. Počkaj, kým nebeží žiadne časové blokovanie.\n'
+          '2. V nastaveniach WSGuard vypni „Ochrana proti odinštalovaniu“ a zadaj heslo.\n'
+          '3. WSGuard odinštaluj ako každú inú aplikáciu (podrž ikonu → Odinštalovať).';
+  String get uninstallGuideForgotTitle =>
+      en ? 'Forgotten password' : 'Zabudnuté heslo';
+  String get uninstallGuideForgot => en
+      ? '1. Restart the phone into safe mode: hold the power button, then long-press “Power off” '
+          'and confirm “Safe mode”. (On some phones: hold Volume down while the phone starts.)\n'
+          '2. In safe mode WSGuard\'s protection doesn\'t run. Open Settings → Security → '
+          'Device admin apps (sometimes under “More security settings”) and turn off WSGuard.\n'
+          '3. Uninstall WSGuard and restart the phone normally.'
+      : '1. Reštartuj telefón do núdzového režimu: podrž vypínač, potom podrž „Vypnúť“ a potvrď '
+          '„Núdzový režim“. (Na niektorých telefónoch: pri štarte drž tlačidlo zníženia hlasitosti.)\n'
+          '2. V núdzovom režime ochrana WSGuard nebeží. Otvor Nastavenia → Zabezpečenie → '
+          'Aplikácie na správu zariadenia (niekedy v „Ďalšie nastavenia zabezpečenia“) a vypni WSGuard.\n'
+          '3. WSGuard odinštaluj a telefón normálne reštartuj.';
+  String get uninstallGuidePcTitle => en ? 'Using a computer (advanced)' : 'Cez počítač (pre pokročilých)';
+  String get uninstallGuidePc => en
+      ? 'With USB debugging on, run:\n'
+          'adb shell dpm remove-active-admin sk.webostudio.web_blocker/.GuardAdminReceiver\n'
+          'adb uninstall sk.webostudio.web_blocker'
+      : 'So zapnutým ladením USB spusti:\n'
+          'adb shell dpm remove-active-admin sk.webostudio.web_blocker/.GuardAdminReceiver\n'
+          'adb uninstall sk.webostudio.web_blocker';
+  String get close => en ? 'Close' : 'Zavrieť';
 }
 
 /// Sprístupní texty v aktuálnom jazyku celému stromu widgetov.

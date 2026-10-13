@@ -246,9 +246,18 @@ class BlockerVpnService : VpnService() {
 
     override fun onRevoke() {
         // Používateľ vypol VPN v systéme alebo spustil inú VPN.
-        BlockStore.setVpnEnabled(this, false)
         shutdown()
         stopSelf()
+        val app = applicationContext
+        if (BlockStore.isLocked(app)) {
+            // Počas časového blokovania sa VPN nedá vypnúť – skúsime ju hneď znova zapnúť.
+            // (Ak medzitým povolenie VPN prevzala iná aplikácia, prepare() vráti výzvu a nič nespravíme.)
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                if (VpnService.prepare(app) == null) start(app)
+            }, 1500)
+        } else {
+            BlockStore.setVpnEnabled(this, false)
+        }
     }
 
     override fun onDestroy() {

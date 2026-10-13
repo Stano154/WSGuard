@@ -21,20 +21,40 @@ class BlockedActivity : Activity() {
         const val EXTRA_KIND = "kind"
         const val KIND_SITE = "site"
         const val KIND_APP = "app"
+        const val KIND_PROTECTED = "protected"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val name = intent.getStringExtra(EXTRA_URL) ?: ""
-        val isApp = intent.getStringExtra(EXTRA_KIND) == KIND_APP
+        val kind = intent.getStringExtra(EXTRA_KIND)
+        val isApp = kind == KIND_APP
+        val isProtected = kind == KIND_PROTECTED
         val en = BlockStore.language(this) == "en"
         val titleText = when {
+            isProtected && en -> "WSGuard is protected"
+            isProtected -> "WSGuard je chránený"
             en && isApp -> "App is blocked"
             en -> "Site is blocked"
             isApp -> "Aplikácia je zablokovaná"
             else -> "Stránka je zablokovaná"
         }
+        // Koniec zobrazíme v čase telefónu (uložený je v dôveryhodnom čase).
+        val lockedUntil = BlockStore.lockedUntil(this).let { if (it > 0) it + BlockStore.skew(this) else 0L }
+        val untilText = if (lockedUntil > 0) {
+            val pattern = if (en) "MMM d, HH:mm" else "d. M. HH:mm"
+            java.text.SimpleDateFormat(pattern, if (en) java.util.Locale.ENGLISH else java.util.Locale("sk"))
+                .format(java.util.Date(lockedUntil))
+        } else ""
         val hintText = when {
+            isProtected && lockedUntil > 0 && en ->
+                "Timed blocking is running until $untilText.\nWSGuard can't be turned off or uninstalled until then."
+            isProtected && lockedUntil > 0 ->
+                "Časové blokovanie beží do $untilText.\nDovtedy sa WSGuard nedá vypnúť ani odinštalovať."
+            isProtected && en ->
+                "Uninstall protection is on.\nYou can turn it off in WSGuard settings with your password."
+            isProtected ->
+                "Ochrana proti odinštalovaniu je zapnutá.\nVypnúť ju môžeš v nastaveniach WSGuard heslom."
             en && isApp -> "This app is on your block list.\nMaybe do something else instead 🙂"
             en -> "This site is on your block list.\nMaybe do something else instead 🙂"
             isApp -> "Táto aplikácia je v tvojom zozname blokovaných.\nVenuj sa radšej niečomu inému 🙂"

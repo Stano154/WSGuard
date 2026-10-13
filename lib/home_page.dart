@@ -8,7 +8,10 @@ import 'blocked_list.dart';
 import 'blocker_api.dart';
 import 'known_services.dart';
 import 'l10n.dart';
+import 'list_edit_page.dart';
+import 'lists_section.dart';
 import 'settings_page.dart';
+import 'timer_picker.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -35,7 +38,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _refresh();
     _loadApps();
-    // Počítadlo zablokovaní sa mení na pozadí, preto ho občas obnovíme.
+    // Počítadlo zablokovaní a odpočty časových blokovaní sa menia, preto stav obnovujeme.
     _poll = Timer.periodic(const Duration(seconds: 3), (_) => _refresh());
   }
 
@@ -74,6 +77,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     setState(() => _busy = true);
     try {
       await action();
+    } on PlatformException catch (e) {
+      if (e.code == 'locked') _toast(s.lockedToast);
     } finally {
       // Služba sa spúšťa asynchrónne, chvíľu počkáme na jej stav.
       await Future.delayed(const Duration(milliseconds: 400));
@@ -82,10 +87,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
   }
 
-  // ---------- akcie ----------
+  // ---------- ochrana ----------
 
   Future<void> _toggleProtection() async {
     if (_state.isProtected) {
+      if (_state.isLocked) return _toast(s.lockedToast);
       await _run(() async {
         await BlockerApi.stopVpn();
         await BlockerApi.setAccessibility(false);
@@ -93,9 +99,16 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       _toast(s.turnedOff);
       return;
     }
-    await _setVpn(true);
-    // Aplikácie sa dajú blokovať iba cez službu prístupnosti.
-    if (_state.apps.isNotEmpty && !_state.accessibilityActive) {
+    await _ensureProtection();
+  }
+
+  /// Zapne všetko, čo je potrebné na blokovanie aktuálneho zoznamu.
+  Future<void> _ensureProtection() async {
+    if (!_state.vpnRunning) await _setVpn(true);
+    final needsApps = _state.effectiveApps.isNotEmpty ||
+        _state.apps.isNotEmpty ||
+        _state.lists.any((l) => l.apps.isNotEmpty);
+    if (needsApps && !_state.accessibilityActive) {
       await _setAccessibility(true);
     } else if (_state.accessibilityServiceOn && !_state.accessibilityEnabled) {
       await _run(() => BlockerApi.setAccessibility(true));
@@ -104,6 +117,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   Future<void> _setVpn(bool on) async {
     if (!BlockerApi.isSupported) return _toast(s.unsupported);
+    if (!on && _state.isLocked) return _toast(s.lockedToast);
     await _run(() async {
       if (on) {
         final granted = await BlockerApi.startVpn();
@@ -116,6 +130,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   Future<void> _setAccessibility(bool on) async {
     if (!BlockerApi.isSupported) return _toast(s.unsupported);
+    if (!on && _state.isLocked) return _toast(s.lockedToast);
     if (on && !_state.accessibilityServiceOn) {
       final ok = await showDialog<bool>(
         context: context,
@@ -128,6 +143,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
     await _run(() => BlockerApi.setAccessibility(on));
   }
+
+  // ---------- pridávanie a odoberanie ----------
 
   Future<void> _add([AddKind kind = AddKind.site]) async {
     // Aplikácie mohli pribudnúť, kým bola obrazovka otvorená.
@@ -145,7 +162,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         initialKind: kind,
       ),
     );
-    if (result == null || result.isEmpty) return;
+    if (result == null || result.isEmpty || !mounted) return;
+
     if (result.sites.isNotEmpty) await _saveEntries([...result.sites, ..._state.entries]);
     if (result.apps.isNotEmpty) await _saveApps([...result.apps, ..._state.apps]);
 
@@ -163,10 +181,18 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
   }
 
+  Future<bool> _confirmTimed(DateTime until) => confirmTimedBlock(
+        context,
+        end: until,
+        minutes: _state.unblockMinutes,
+        perDay: _state.unblockPerDay,
+      );
+
   String _siteName(String entry) => serviceForDomain(entry)?.name ?? entry;
   String _appName(String pkg) => _appInfo[pkg]?.label ?? pkg;
 
   Future<void> _removeSite(String entry) async {
+    if (_state.siteStatus(entry).isTimedLock) return _toast(s.lockedToast);
     final before = _state.entries;
     final disabled = _state.disabledEntries;
     await _saveEntries(before.where((e) => e != entry).toList());
@@ -177,6 +203,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Future<void> _removeApp(String package) async {
+    if (_state.appStatus(package).isTimedLock) return _toast(s.lockedToast);
     final before = _state.apps;
     final disabled = _state.disabledApps;
     await _saveApps(before.where((e) => e != package).toList());
@@ -186,7 +213,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     });
   }
 
-  /// Vypínač pri položke – dočasne povolí / znova zablokuje bez odstránenia zo zoznamu.
+  /// Vypínač pri trvalej položke – dočasne povolí / znova zablokuje bez odstránenia zo zoznamu.
   Future<void> _toggleSite(String entry, bool blocked) async {
     final set = {..._state.disabledEntries};
     blocked ? set.remove(entry) : set.add(entry);
@@ -200,6 +227,69 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     await _saveDisabled(apps: set);
     _toast(blocked ? s.resumed(_appName(package)) : s.paused(_appName(package)));
   }
+
+  // ---------- časové blokovanie ----------
+
+  /// "Zablokovať na čas" pri položke alebo zozname. Bežiace blokovanie sa dá iba predĺžiť.
+  Future<void> _timer(String key, String name) async {
+    final until = await showBlockForTimeSheet(context, name: name, currentEnd: _state.timerEnd(key));
+    if (until == null || !mounted) return;
+    if (!await _confirmTimed(until)) return;
+    final st = await BlockerApi.setTimer(key, until);
+    if (mounted) setState(() => _state = st);
+    await BlockerApi.requestNotifications();
+    _toast(s.timedStarted(name, until));
+    await _ensureProtection();
+  }
+
+  /// "Odblokovať na N min" pri časovom blokovaní.
+  Future<void> _unblock(String key, String name) async {
+    final r = await BlockerApi.pause(key);
+    if (mounted) setState(() => _state = r.state);
+    _toast(r.ok ? s.unblocked(name, _state.unblockMinutes) : s.unblockLimit);
+  }
+
+  // ---------- zoznamy ----------
+
+  Future<void> _openList([BlockList? list]) async {
+    _installedApps = BlockerApi.getInstalledApps();
+    _loadApps();
+    final saved = await Navigator.of(context).push<BlockList>(MaterialPageRoute(
+      builder: (_) => ListEditPage(
+        initial: list,
+        locked: list != null && _state.listStatus(list.id).isTimedLock,
+        installedApps: _installedApps,
+      ),
+    ));
+    if (saved == null) return;
+    final lists = [
+      for (final l in _state.lists) l.id == saved.id ? saved : l,
+      if (!_state.lists.any((l) => l.id == saved.id)) saved,
+    ];
+    await _saveLists(lists);
+    if (list == null) {
+      _toast(_state.isProtected ? s.added(saved.name) : s.addedTurnOn(saved.name));
+    }
+    if (saved.apps.isNotEmpty && _state.isProtected && !_state.accessibilityActive) {
+      await _setAccessibility(true);
+    }
+  }
+
+  Future<void> _toggleList(BlockList list, bool blocked) async {
+    final set = {..._state.disabledLists};
+    blocked ? set.remove(list.id) : set.add(list.id);
+    await _saveDisabled(lists: set);
+    _toast(blocked ? s.resumed(list.name) : s.paused(list.name));
+  }
+
+  Future<void> _removeList(BlockList list) async {
+    if (_state.listStatus(list.id).isTimedLock) return _toast(s.lockedToast);
+    final before = _state.lists;
+    await _saveLists(before.where((l) => l.id != list.id).toList());
+    _undo(s.listDeleted(list.name), () => _saveLists(before));
+  }
+
+  // ---------- ukladanie ----------
 
   void _undo(String text, VoidCallback undo) {
     if (!mounted) return;
@@ -224,11 +314,16 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     if (mounted) setState(() => _state = st);
   }
 
-  Future<void> _saveDisabled({Set<String>? entries, Set<String>? apps}) async {
-    final e = entries ?? _state.disabledEntries;
-    final a = apps ?? _state.disabledApps;
-    setState(() => _state = _state.copyWith(disabledEntries: e, disabledApps: a));
-    final st = await BlockerApi.setDisabled(e, a);
+  Future<void> _saveLists(List<BlockList> lists) async {
+    setState(() => _state = _state.copyWith(lists: lists));
+    final st = await BlockerApi.setLists(lists);
+    if (mounted) setState(() => _state = st);
+  }
+
+  Future<void> _saveDisabled({Set<String>? entries, Set<String>? apps, Set<String>? lists}) async {
+    setState(() => _state = _state.copyWith(
+        disabledEntries: entries, disabledApps: apps, disabledLists: lists));
+    final st = await BlockerApi.setDisabled(entries: entries, apps: apps, lists: lists);
     if (mounted) setState(() => _state = st);
   }
 
@@ -244,6 +339,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final lockedUntil = _state.lockedUntil;
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _add,
@@ -284,9 +380,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                         child: IconButton.filledTonal(
                           tooltip: s.settings,
                           icon: const Icon(Icons.settings_rounded),
-                          onPressed: () => Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const SettingsPage()),
-                          ),
+                          onPressed: () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const SettingsPage()),
+                            );
+                            _refresh();
+                          },
                         ),
                       ),
                     ],
@@ -300,6 +399,20 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                         const SizedBox(height: 16),
                       ],
                       _StatusCard(state: _state, busy: _busy, onToggle: _toggleProtection),
+                      if (lockedUntil != null) ...[
+                        const SizedBox(height: 12),
+                        Notice(text: s.lockedBanner(lockedUntil), icon: Icons.lock_clock_rounded),
+                      ],
+                      const SizedBox(height: 28),
+                      ListsSection(
+                        state: _state,
+                        onNew: () => _openList(),
+                        onEdit: _openList,
+                        onToggle: _toggleList,
+                        onRemove: _removeList,
+                        onTimer: _timer,
+                        onUnblock: _unblock,
+                      ),
                       const SizedBox(height: 28),
                       BlockedList(
                         state: _state,
@@ -309,6 +422,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                         onRemoveApp: _removeApp,
                         onToggleSite: _toggleSite,
                         onToggleApp: _toggleApp,
+                        onTimer: _timer,
+                        onUnblock: _unblock,
                         onEnableBrowsers: () => _setAccessibility(true),
                         onEnableProtection: _toggleProtection,
                       ),
@@ -320,6 +435,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                         title: s.vpnTitle,
                         subtitle: s.vpnSubtitle,
                         value: _state.vpnRunning,
+                        locked: _state.isLocked && _state.vpnRunning,
                         onChanged: _busy ? null : _setVpn,
                       ),
                       const SizedBox(height: 8),
@@ -328,6 +444,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                         title: s.a11yTitle,
                         subtitle: s.a11ySubtitle,
                         value: _state.accessibilityActive,
+                        locked: _state.isLocked && _state.accessibilityActive,
                         onChanged: _busy ? null : _setAccessibility,
                         warning: _state.accessibilityEnabled && !_state.accessibilityServiceOn
                             ? s.a11yNeedsSettings
@@ -359,8 +476,10 @@ class _StatusCard extends StatelessWidget {
     final colors = on
         ? const [Color(0xFF6A4CF0), Color(0xFF3F2B96)]
         : const [Color(0xFF6E6A7C), Color(0xFF45424F)];
-    final sites = state.activeSites;
-    final apps = state.activeApps;
+    final sites = state.effectiveSites.length;
+    final apps = state.effectiveApps.length;
+    final lockedUntil = state.lockedUntil;
+    final lockedNow = on && lockedUntil != null;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 400),
@@ -452,7 +571,7 @@ class _StatusCard extends StatelessWidget {
             width: double.infinity,
             height: 52,
             child: FilledButton(
-              onPressed: busy ? null : onToggle,
+              onPressed: busy || lockedNow ? null : onToggle,
               style: FilledButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: colors.last,
@@ -465,7 +584,17 @@ class _StatusCard extends StatelessWidget {
                       height: 22,
                       child: CircularProgressIndicator(strokeWidth: 2.5, color: colors.last),
                     )
-                  : Text(on ? s.turnOff : s.turnOn),
+                  : lockedNow
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.lock_clock_rounded, color: colors.last, size: 20),
+                            const SizedBox(width: 8),
+                            Text(s.lockedShort(lockedUntil),
+                                style: TextStyle(color: colors.last)),
+                          ],
+                        )
+                      : Text(on ? s.turnOff : s.turnOn),
             ),
           ),
         ],
@@ -527,6 +656,7 @@ class _MethodTile extends StatelessWidget {
     required this.subtitle,
     required this.value,
     required this.onChanged,
+    this.locked = false,
     this.warning,
     this.onWarningTap,
   });
@@ -535,6 +665,9 @@ class _MethodTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final bool value;
+
+  /// Počas časového blokovania sa spôsob blokovania nedá vypnúť.
+  final bool locked;
   final ValueChanged<bool>? onChanged;
   final String? warning;
   final VoidCallback? onWarningTap;
@@ -545,7 +678,7 @@ class _MethodTile extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: onChanged == null ? null : () => onChanged!(!value),
+        onTap: onChanged == null || locked ? null : () => onChanged!(!value),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 12, 16),
           child: Column(
@@ -584,7 +717,12 @@ class _MethodTile extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Switch(value: value, onChanged: onChanged),
+                  if (locked)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10, right: 6),
+                      child: Icon(Icons.lock_clock_rounded, color: scheme.primary),
+                    ),
+                  Switch(value: value, onChanged: locked ? null : onChanged),
                 ],
               ),
               if (warning != null) ...[
