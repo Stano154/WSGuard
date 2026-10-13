@@ -237,9 +237,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     if (!await _confirmTimed(until)) return;
     final st = await BlockerApi.setTimer(key, until);
     if (mounted) setState(() => _state = st);
-    await BlockerApi.requestNotifications();
-    _toast(s.timedStarted(name, until));
-    await _ensureProtection();
+    // Spôsoby blokovania nemeníme – používateľ si ich zapína sám.
+    _toast(_state.isProtected
+        ? s.timedStarted(name, until)
+        : '${s.timedStarted(name, until)}. ${s.remindTurnOn}');
   }
 
   /// "Odblokovať na N min" pri časovom blokovaní.

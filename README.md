@@ -46,7 +46,7 @@ android/app/src/main/kotlin/sk/webostudio/web_blocker/
   BlockerAccessibilityService.kt  – sledovanie adresného riadku
   BlockedActivity.kt              – obrazovka „Stránka je zablokovaná“
   BootReceiver.kt                 – obnovenie VPN a budíkov po reštarte
-  TimerReceiver.kt                – koniec časového blokovania + upozornenie
+  TimerReceiver.kt                – koniec časového blokovania (bez upozornení)
   ClockReceiver.kt                – zachytenie posunu hodín (dôveryhodný čas v BlockStore)
   GuardAdminReceiver.kt           – správca zariadenia (ochrana proti odinštalovaniu)
 ```

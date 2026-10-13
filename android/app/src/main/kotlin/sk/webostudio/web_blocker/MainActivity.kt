@@ -6,7 +6,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.net.VpnService
-import android.os.Build
+
 import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -19,7 +19,6 @@ class MainActivity : FlutterActivity() {
         private const val CHANNEL = "sk.webostudio.web_blocker/blocker"
         private const val VPN_REQUEST = 4242
         private const val ADMIN_REQUEST = 4243
-        private const val NOTIFICATION_REQUEST = 4244
     }
 
     private var pendingVpnResult: MethodChannel.Result? = null
@@ -115,12 +114,6 @@ class MainActivity : FlutterActivity() {
                     result.success(null)
                 }
                 "setUninstallProtection" -> setUninstallProtection(call.argument<Boolean>("enabled") == true, result)
-                "requestNotifications" -> {
-                    if (Build.VERSION.SDK_INT >= 33) {
-                        requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), NOTIFICATION_REQUEST)
-                    }
-                    result.success(null)
-                }
                 else -> result.notImplemented()
             }
         }

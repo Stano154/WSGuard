@@ -327,10 +327,6 @@ class BlockerApi {
     return await _channel.invokeMethod<bool>('setUninstallProtection', {'enabled': enabled}) ?? false;
   }
 
-  static Future<void> requestNotifications() async {
-    if (!isSupported) return;
-    await _channel.invokeMethod('requestNotifications');
-  }
 
   // Na nepodporovaných platformách nastavenia iba v pamäti.
   static final Map<String, String> _fallbackSettings = {};

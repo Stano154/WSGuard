@@ -247,6 +247,8 @@ class S {
       en ? 'Today\'s unblock limit is used up' : 'Dnešný limit odblokovaní je vyčerpaný';
   String unblocked(String name, int minutes) =>
       en ? '$name is unblocked for $minutes min' : '$name je odblokované na $minutes min';
+  String get remindTurnOn =>
+      en ? 'Don\'t forget to turn on protection 👆' : 'Nezabudni zapnúť ochranu 👆';
   String timedStarted(String name, DateTime end) =>
       en ? '$name is blocked until ${dateTime(end)}' : '$name je zablokované do ${dateTime(end)}';
   String lockedBanner(DateTime end) => en

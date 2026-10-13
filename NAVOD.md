@@ -66,7 +66,7 @@ Výsledok: `WSGuard\build\app\outputs\flutter-apk\app-release.apk`
   nebeží žiadne časové blokovanie. Pri „Nikdy“ sa tlačidlo na odblokovanie vôbec nezobrazí.
 - **Zmena dátumu alebo času v telefóne blokovanie neskráti** – WSGuard si posun hodín všimne
   a odpočíta ho (meria čas od zapnutia telefónu, ktorý sa zmeniť nedá).
-- Po skončení sa položka prepne na **Povolené** (ostane v zozname) a príde upozornenie.
+- Po skončení sa položka prepne na **Povolené** (ostane v zozname).
 
 ## Zoznamy
 
